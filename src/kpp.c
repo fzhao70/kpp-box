@@ -32,6 +32,8 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <dirent.h>
+#include <sys/stat.h>
 #include "gdata.h"
 #include "scan.h"
 
@@ -499,21 +501,196 @@ FILE * fp;
   printf("\n\nCMDEXE='%s'\n",cmdexe);
   system( cmdexe );
 */
-} 
- 
-/*******************************************************************/                    
+}
+
+/*******************************************************************/
+void PrintUsage( void )
+{
+  printf("\nKPP - The Kinetic PreProcessor version %s\n", KPP_VERSION);
+  printf("Builds simulation code for chemical kinetic systems\n\n");
+
+  printf("Usage:\n");
+  printf("  kpp <equations_file> [output_file]     Generate code from KPP input file\n");
+  printf("  kpp --help, -h                         Show this help message\n");
+  printf("  kpp --version, -v                      Show version information\n");
+  printf("  kpp --list-models                      List available models\n");
+  printf("  kpp --list-integrators                 List available integrators\n");
+  printf("  kpp --list-drivers                     List available drivers\n\n");
+
+  printf("Examples:\n");
+  printf("  kpp small.kpp                          Process small.kpp, output to small.*\n");
+  printf("  kpp mymodel.kpp output                 Process mymodel.kpp, output to output.*\n\n");
+
+  printf("Environment:\n");
+  printf("  KPP_HOME    Path to KPP installation directory (currently: %s)\n\n",
+         Home[0] ? Home : "not set");
+
+  printf("For more information, see the KPP User Manual.\n\n");
+}
+
+/*******************************************************************/
+void PrintVersion( void )
+{
+  printf("KPP version %s\n", KPP_VERSION);
+  printf("Copyright (C) 1995-1996 Valeriu Damian and Adrian Sandu\n");
+  printf("Copyright (C) 1997-2005 Adrian Sandu\n");
+  printf("License: GPL v2 or later\n\n");
+}
+
+/*******************************************************************/
+void ListDirectory( const char* label, const char* path, const char* extension )
+{
+  DIR *dir;
+  struct dirent *entry;
+  int count = 0;
+  char fullpath[MAX_PATH];
+
+  if (!path || !path[0]) {
+    printf("Error: %s path not set (check KPP_HOME environment variable)\n", label);
+    return;
+  }
+
+  dir = opendir(path);
+  if (!dir) {
+    printf("Error: Cannot open %s directory: %s\n", label, path);
+    return;
+  }
+
+  printf("\nAvailable %s (in %s):\n", label, path);
+  printf("-----------------------------------------------\n");
+
+  while ((entry = readdir(dir)) != NULL) {
+    if (entry->d_name[0] == '.') continue;
+
+    if (extension && extension[0]) {
+      char *dot = strrchr(entry->d_name, '.');
+      if (!dot || strcmp(dot, extension) != 0) continue;
+
+      /* Print name without extension */
+      int len = dot - entry->d_name;
+      printf("  %.*s\n", len, entry->d_name);
+      count++;
+    } else {
+      /* Check if it's a regular file */
+      snprintf(fullpath, MAX_PATH, "%s/%s", path, entry->d_name);
+      struct stat st;
+      if (stat(fullpath, &st) == 0 && S_ISREG(st.st_mode)) {
+        printf("  %s\n", entry->d_name);
+        count++;
+      }
+    }
+  }
+
+  closedir(dir);
+
+  if (count == 0) {
+    printf("  (none found)\n");
+  } else {
+    printf("\nTotal: %d\n", count);
+  }
+}
+
+/*******************************************************************/
+void ListModels( void )
+{
+  char path[MAX_PATH];
+  DIR *dir;
+
+  if (!Home[0]) {
+    printf("Error: KPP_HOME environment variable not set.\n");
+    printf("Please set KPP_HOME to your KPP installation directory.\n");
+    return;
+  }
+
+  /* Try demo/models first, then models */
+  snprintf(path, MAX_PATH, "%s/demo/models", Home);
+  dir = opendir(path);
+  if (!dir) {
+    snprintf(path, MAX_PATH, "%s/models", Home);
+  } else {
+    closedir(dir);
+  }
+
+  ListDirectory("Models", path, ".def");
+
+  printf("\nTo use a model, add this line to your .kpp file:\n");
+  printf("  #INCLUDE <model_name>\n\n");
+}
+
+/*******************************************************************/
+void ListIntegrators( void )
+{
+  char path[MAX_PATH];
+
+  if (!Home[0]) {
+    printf("Error: KPP_HOME environment variable not set.\n");
+    printf("Please set KPP_HOME to your KPP installation directory.\n");
+    return;
+  }
+
+  snprintf(path, MAX_PATH, "%s/int", Home);
+  ListDirectory("Integrators", path, ".def");
+
+  printf("\nTo use an integrator, add this line to your .kpp file:\n");
+  printf("  #INTEGRATOR <integrator_name>\n\n");
+}
+
+/*******************************************************************/
+void ListDrivers( void )
+{
+  char path[MAX_PATH];
+
+  if (!Home[0]) {
+    printf("Error: KPP_HOME environment variable not set.\n");
+    printf("Please set KPP_HOME to your KPP installation directory.\n");
+    return;
+  }
+
+  snprintf(path, MAX_PATH, "%s/drv", Home);
+  ListDirectory("Drivers", path, NULL);
+
+  printf("\nTo use a driver, add this line to your .kpp file:\n");
+  printf("  #DRIVER <driver_name>\n\n");
+}
+
+/*******************************************************************/
 int main( int argc, char * argv[] )
 {
 int status;
 char name[ 200 ];
 char *p;
 int i,j;
-  
+
   AllocInternalArrays();
 
   p = getenv("KPP_HOME");
   if( p ) strcpy( Home, p );
 
+  /* Handle command-line flags */
+  if( argc == 2 ) {
+    if( strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0 ) {
+      PrintUsage();
+      exit(0);
+    }
+    if( strcmp(argv[1], "--version") == 0 || strcmp(argv[1], "-v") == 0 ) {
+      PrintVersion();
+      exit(0);
+    }
+    if( strcmp(argv[1], "--list-models") == 0 ) {
+      ListModels();
+      exit(0);
+    }
+    if( strcmp(argv[1], "--list-integrators") == 0 ) {
+      ListIntegrators();
+      exit(0);
+    }
+    if( strcmp(argv[1], "--list-drivers") == 0 ) {
+      ListDrivers();
+      exit(0);
+    }
+  }
+
+  /* Handle normal file processing */
   switch( argc ) {
     case 3: eqFileName = argv[1];
             rootFileName = argv[2];
@@ -522,47 +699,95 @@ int i,j;
             strcpy( name, eqFileName );
             p = name + strlen(name);
             while( p > name ) {
-              if( *p == '.') { 
+              if( *p == '.') {
                 *p = '\0';
                 break;
               }
-              p--;  
-            } 
+              p--;
+            }
 	    rootFileName = name;
 	    break;
-    default: FatalError(1,"\nUsage :"
-		          "\n        kpp <equations file> [output file]\n");
+    case 1: printf("\nError: Missing required argument <equations_file>\n");
+            PrintUsage();
+            exit(1);
+    default: printf("\nError: Too many arguments\n");
+            PrintUsage();
+            exit(1);
   }
 
-  printf("\nThis is KPP-%s.\n", KPP_VERSION);
+  /* Validate KPP_HOME is set */
+  if (!Home[0]) {
+    printf("\n%s\n", "========================================");
+    printf("%s\n", "ERROR: KPP_HOME not set");
+    printf("%s\n", "========================================");
+    printf("\nThe KPP_HOME environment variable is not set.\n");
+    printf("KPP needs this to locate models, integrators, and drivers.\n\n");
+    printf("To fix this, either:\n");
+    printf("  1. Run the installation script:\n");
+    printf("       cd %s\n", getenv("PWD") ? getenv("PWD") : ".");
+    printf("       ./install.sh\n\n");
+    printf("  2. Or manually set KPP_HOME:\n");
+    printf("       export KPP_HOME=/path/to/kpp-box\n");
+    printf("       export PATH=$PATH:$KPP_HOME/bin\n\n");
+    exit(1);
+  }
 
-  printf("\nKPP is parsing the equation file.");
+  /* Validate input file exists */
+  FILE *testfile = fopen(eqFileName, "r");
+  if (!testfile) {
+    printf("\n%s\n", "========================================");
+    printf("ERROR: Cannot open input file\n");
+    printf("%s\n", "========================================");
+    printf("\nThe file '%s' does not exist or cannot be read.\n\n", eqFileName);
+    printf("Please check:\n");
+    printf("  - File path is correct\n");
+    printf("  - File has .kpp extension\n");
+    printf("  - You have read permissions\n\n");
+    printf("Example files are available in:\n");
+    printf("  %s/demo/examples/\n\n", Home);
+    exit(1);
+  }
+  fclose(testfile);
+
+  printf("\n========================================\n");
+  printf("KPP - Kinetic PreProcessor v%s\n", KPP_VERSION);
+  printf("========================================\n");
+
+  printf("\n[1/4] Parsing equation file '%s'...\n", eqFileName);
   status = ParseEquationFile( argv[1] );
 
-  if( status ) FatalError(2,"%d errors and %d warnings encountered.", 
-                           nError, nWarning ); 
+  if( status ) FatalError(2,"%d errors and %d warnings encountered.",
+                           nError, nWarning );
+  printf("      Success: Parsed %d species and %d reactions\n", SpcNr, EqnNr);
+
   /* Allocate some internal data structures */
   AllocStructArrays();
 
-  printf("\nKPP is computing Jacobian sparsity structure.");
+  printf("\n[2/4] Computing Jacobian sparsity structure...\n");
   ReorderSpecies( UNSORT );
   if (useReorder==1){
-    BestSparsity(); 
+    BestSparsity();
     ReorderSpecies( BESTSORT );
+    printf("      Optimized variable ordering for sparsity\n");
     }
   UpdateStructJ();
   ComputeLUStructJ();
+  printf("      Success: %d variable species, %d fixed species\n", VarNr, FixNr);
 
   if( initNr == -1 ) initNr = VarNr;
 
 
-  printf("\nKPP is starting the code generation.");
+  printf("\n[3/4] Generating code files...\n");
   Generate( rootFileName );
-  
-  printf("\nKPP is starting the code post-processing.");
+  printf("      Generated code files for model '%s'\n", rootFileName);
+
+  printf("\n[4/4] Post-processing...\n");
   Postprocess( rootFileName );
-  
-  printf("\n\nKPP has succesfully created the model \"%s\".\n\n",rootFileName);
+  printf("      Post-processing complete\n");
+
+  printf("\n========================================\n");
+  printf("SUCCESS: Model '%s' created successfully!\n", rootFileName);
+  printf("========================================\n\n");
 
   if( nError ) exit(4);
   if( nWarning ) exit(5);

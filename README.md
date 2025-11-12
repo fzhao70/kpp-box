@@ -1,6 +1,49 @@
 # Kinetics PreProcessor Version 2.2.3
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+KPP is a symbolic chemistry Kinetics PreProcessor that builds simulation code for chemical kinetic systems.
+
+## Quick Start
+
+### Easy Installation (Recommended)
+
+The easiest way to install KPP is using the automated installation script:
+
+```bash
+./install.sh
+```
+
+This will automatically:
+- Detect your system configuration
+- Find required libraries (flex, gcc, etc.)
+- Configure and build KPP
+- Set up environment variables
+- Test the installation
+
+After installation, restart your terminal or run:
+```bash
+source ~/.bashrc  # or ~/.zshrc for zsh
+```
+
+### Quick Usage
+
+```bash
+# Get help
+kpp --help
+
+# List available models
+kpp --list-models
+
+# List available integrators
+kpp --list-integrators
+
+# Process a KPP file
+kpp mymodel.kpp
+
+# See examples
+ls demo/examples/
+```
+
+## About KPP
 
   KPP - symbolic chemistry Kinetics PreProcessor, Version 2.2.3
         (http://www.cs.vt.edu/~asandu/Software/KPP)
@@ -16,13 +59,9 @@
 
         sandu@cs.vt.edu
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+For detailed information: Read user's manual (doc/kpp-UserManual.pdf)
 
-To get started with KPP:  Read user's manual (doc/kpp-UserManual.pdf)
-------------------------
-
-To install KPP:
----------------
+## Manual Installation
 
 1. Make sure that FLEX (public domain lexical analizer) is installed
    on your machine. Type "flex --version" to test this.
